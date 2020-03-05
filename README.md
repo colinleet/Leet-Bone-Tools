@@ -8,4 +8,5 @@ This blender add-on only runs in pose mode.
 Selections are saved in an auxiliary text file in the same directory as the blend file.
 New cached bone selections are created and edited only in the tool's 3d-view panel, not in the pie menu.
 
-To access this toolset’s pie menu hold control and click in a 3d-view while in pose mode.
+The panel and pie menu will only appear when an armature is selected in pose-mode.
+To access this toolset’s pie menu hold control and click in a 3d-view when an armature is selected in pose-mode.
