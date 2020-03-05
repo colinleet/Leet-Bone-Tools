@@ -109,8 +109,8 @@ class LeetBoneToolsSettings(PropertyGroup):
         default=True
     )
 
-    ViewPieCursorToTools: BoolProperty(
-        name="Go To Cursor Tools",
+    ViewPieCursorSnapTools: BoolProperty(
+        name="Snap To Cursor Tools",
         description="This will show or hide the go to cursor tools when one bone is selected",
         default=False
     )
@@ -507,11 +507,11 @@ class VIEW3D_MT_LeetBoneOppsEffectMenu(Menu):
         scene = context.scene
         boneTools = scene.leetBoneToolsSettings
 
-        layout.label(text="Leet Bone Opps Effect")
-        layout.separator()
         layout.prop(boneTools, "EffectLoc")
         layout.prop(boneTools, "EffectRot")
         layout.prop(boneTools, "EffectScale")
+        layout.separator()
+        layout.label(text="These Bone Keying Tools Effect...")
 
 
 class VIEW3D_MT_LeetPieMenuShowTools(Menu):
@@ -524,7 +524,7 @@ class VIEW3D_MT_LeetPieMenuShowTools(Menu):
         boneTools = scene.leetBoneToolsSettings
 
         layout.prop(boneTools, "ViewPieFrameKeying")
-        layout.prop(boneTools, "ViewPieCursorToTools")
+        layout.prop(boneTools, "ViewPieCursorSnapTools")
         layout.separator()
         layout.label(text="Tools to show in this pie menu")
 
@@ -614,7 +614,7 @@ class VIEW3D_MT_PIE_LeetBonePie(Menu):
             # ------------------------------------------------------------------------
             #    Cursor To Bone and Back ( One bone only! )
             # ------------------------------------------------------------------------
-            if num_bones_selected == 1 and boneTools.ViewPieCursorToTools:
+            if num_bones_selected == 1 and boneTools.ViewPieCursorSnapTools:
                 # When one bone is selected show the snap to cursor/snap bone to cursor tools.
                 snap_box = pie.box().column()
                 snap_box.operator("view3d.snap_cursor_to_selected")
