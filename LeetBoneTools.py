@@ -228,8 +228,13 @@ class Leet_CacheSelectedBones(Operator):
             boneTools.CachedSelections[boneTools.CurrArm][newGroup] = []
             boneTools.CachesOrder[boneTools.CurrArm].append(newGroup)
 
+            # Get the set of valid bones
+            bones = set(bpy.data.objects[boneTools.CurrArm].data.bones.keys())
+
             for i in bpy.context.selected_pose_bones:
-                boneTools.CachedSelections[boneTools.CurrArm][newGroup].append(i.name)
+                # Filter out bones on other armatures
+                if i.name in bones:
+                    boneTools.CachedSelections[boneTools.CurrArm][newGroup].append(i.name)
 
             # Save changes
             if boneTools.AutoSaveBoneCaches:
@@ -238,7 +243,7 @@ class Leet_CacheSelectedBones(Operator):
         return {'FINISHED'}
 
 
-class Leet_SelectCachedBonesSet(Operator):
+class Leet_SelectCachedBones(Operator):
     bl_label = "Select Cached Bones"
     bl_idname = "leet.cached_bones_sel"
 
@@ -702,7 +707,7 @@ classes = (
     Leet_CacheBonesSaveDisk,
     Leet_CacheSelectedBones,
     Leet_CachedBoneMoveIndex,
-    Leet_SelectCachedBonesSet,
+    Leet_SelectCachedBones,
     Leet_DeleteCachedBonesSet,
     Leet_ResetBones,
     Leet_KeyBones,
