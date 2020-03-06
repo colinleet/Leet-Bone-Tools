@@ -53,7 +53,7 @@ bl_info = {
 
 
 # ------------------------------------------------------------------------
-#    Scene Properties
+#    Toolset Properties
 # ------------------------------------------------------------------------
 
 class LeetBoneToolsSettings(PropertyGroup):
@@ -118,7 +118,7 @@ class LeetBoneToolsSettings(PropertyGroup):
     )
 
     FocusOnSelected: BoolProperty(
-        name="Focus On Selection",
+        name="Zoom To Selected",
         description="This will refocus the view to the selected objects",
         default=False
     )
@@ -137,6 +137,7 @@ class LeetBoneToolsSettings(PropertyGroup):
 
     # Non-saved options
     CachedSelections = {}
+    CachesOrder = {}
 
 
 # ------------------------------------------------------------------------
@@ -146,7 +147,7 @@ class LeetBoneToolsSettings(PropertyGroup):
 def GetCWDAndFileName():
     # Returns the current cwd, and file name
     cwd, fileName = ntSplit(bpy.data.filepath)
-    fileName = fileName.strip(".blend") + "-LeetBoneToolsSelctionCache.txt"
+    fileName = fileName.strip(".blend") + "-LeetBoneToolsSelections.txt"
     return (cwd, fileName)
 
 
@@ -173,9 +174,13 @@ class Leet_CacheBonesLoadDisk(Operator):
             d = eval(openFile.read())
             openFile.close()
 
-            # Laod the data
-            for i in d.keys():
-                scene.leetBoneToolsSettings.CachedSelections[i] = d[i]
+            # Load the cache data
+            for i in d[0].keys():
+                scene.leetBoneToolsSettings.CachedSelections[i] = d[0][i]
+
+            # Load the list order data
+            for j in d[1].keys():
+                scene.leetBoneToolsSettings.CachesOrder[j] = d[1][j]
 
         else:
             print("Could not find file to load... " + filePath)
@@ -197,7 +202,7 @@ class Leet_CacheBonesSaveDisk(Operator):
 
         # Create the file
         saveFile = open(filePath, 'w')
-        fileContent = str(boneTools.CachedSelections)
+        fileContent = str([boneTools.CachedSelections, boneTools.CachesOrder])
         saveFile.write(str(fileContent))
         saveFile.close()
 
@@ -221,10 +226,10 @@ class Leet_CacheSelectedBones(Operator):
 
             # Add new dict item for saved group
             boneTools.CachedSelections[boneTools.CurrArm][newGroup] = []
+            boneTools.CachesOrder[boneTools.CurrArm].append(newGroup)
 
             for i in bpy.context.selected_pose_bones:
                 boneTools.CachedSelections[boneTools.CurrArm][newGroup].append(i.name)
-            print(boneTools.CachedSelections[boneTools.CurrArm][newGroup])
 
             # Save changes
             if boneTools.AutoSaveBoneCaches:
@@ -233,7 +238,7 @@ class Leet_CacheSelectedBones(Operator):
         return {'FINISHED'}
 
 
-class Leet_LoadCachedBones(Operator):
+class Leet_SelectCachedBonesSet(Operator):
     bl_label = "Select Cached Bones"
     bl_idname = "leet.cached_bones_sel"
 
@@ -246,6 +251,7 @@ class Leet_LoadCachedBones(Operator):
         # Save Arm Name
         boneTools.CurrArm = bpy.context.object.name
 
+        # Check valid input
         if self.sel_group == "":
             return {'FINISHED'}
         elif self.sel_group not in boneTools.CachedSelections[boneTools.CurrArm]:
@@ -263,6 +269,49 @@ class Leet_LoadCachedBones(Operator):
         # Should we focus on the selected objects?
         if boneTools.FocusOnSelected:
             bpy.ops.view3d.view_selected()
+
+        return {'FINISHED'}
+
+class Leet_CachedBoneMoveIndex(Operator):
+    bl_label = "Move Index of Cached Bones"
+    bl_idname = "leet.cached_bones_move_index"
+
+    sel_group: bpy.props.StringProperty()
+    move_up: bpy.props.BoolProperty()
+
+    def execute(self, context):
+        scene = context.scene
+        boneTools = scene.leetBoneToolsSettings
+
+        # Save Arm Name
+        boneTools.CurrArm = bpy.context.object.name
+
+        # Get arm cache count
+        c = len(boneTools.CachesOrder[boneTools.CurrArm])
+
+        if self.sel_group == "":
+            return {'FINISHED'}
+        elif self.sel_group not in boneTools.CachesOrder[boneTools.CurrArm]:
+            return {'FINISHED'}
+        elif c <= 1:
+            return {'FINISHED'}
+
+        # Switch the index
+        modVal = len(boneTools.CachesOrder[boneTools.CurrArm])
+        sel_index = boneTools.CachesOrder[boneTools.CurrArm].index(self.sel_group)
+        if self.move_up:
+            new_index = sel_index - 1
+        else:
+            new_index = sel_index + 1
+        sel_index = sel_index % modVal
+        new_index = new_index % modVal
+        boneTools.CachesOrder[boneTools.CurrArm][sel_index],\
+        boneTools.CachesOrder[boneTools.CurrArm][new_index] = boneTools.CachesOrder[boneTools.CurrArm][new_index],\
+                                                              boneTools.CachesOrder[boneTools.CurrArm][sel_index]
+
+        # Save changes
+        if boneTools.AutoSaveBoneCaches:
+            bpy.ops.leet.cached_bones_save_disk()
 
         return {'FINISHED'}
 
@@ -287,6 +336,8 @@ class Leet_DeleteCachedBonesSet(Operator):
 
         # Delete the selection cache
         del boneTools.CachedSelections[boneTools.CurrArm][self.sel_group]
+        ind = boneTools.CachesOrder[boneTools.CurrArm].index(self.sel_group)
+        del boneTools.CachesOrder[boneTools.CurrArm][ind]
 
         # Save changes
         if boneTools.AutoSaveBoneCaches:
@@ -400,11 +451,14 @@ class OBJECT_PT_LeetBonePanel(Panel):
         currArm = bpy.context.object.name
         if currArm not in boneTools.CachedSelections:
             boneTools.CachedSelections[currArm] = {}
+        if currArm not in boneTools.CachesOrder:
+            boneTools.CachesOrder[currArm] = []
 
         # Number of bones selected
         num_bones_selected = len(bpy.context.selected_pose_bones)
         bones_selected = num_bones_selected > 0
-        bones_cached = len(boneTools.CachedSelections[currArm]) > 0
+        caches_count = len(boneTools.CachedSelections[currArm])
+        bones_cached = caches_count > 0
 
         # Keying Selected Bones Controls Current Frame Tools
         bo = "Bone" if num_bones_selected == 1 else "Bones"
@@ -415,9 +469,9 @@ class OBJECT_PT_LeetBonePanel(Panel):
         effect_keys_row.prop(boneTools, "EffectScale")
         if bones_selected:
             bones_keying_opps_row = layout.row()
-            bones_keying_opps_row.operator("leet.key_bones")
-            bones_keying_opps_row.operator("leet.clear_key_bones")
-            bones_keying_opps_row.operator("leet.reset_bones")
+            bones_keying_opps_row.operator("leet.key_bones", icon="KEYTYPE_KEYFRAME_VEC")
+            bones_keying_opps_row.operator("leet.clear_key_bones", icon="TRASH")
+            bones_keying_opps_row.operator("leet.reset_bones", icon="FILE_REFRESH")
 
         else:
             layout.label(text="Select bone(s) to affect keying.")
@@ -432,45 +486,55 @@ class OBJECT_PT_LeetBonePanel(Panel):
         if not bones_cached:
             layout.label(text="No selections cached for {}".format(currArm))
             if not boneTools.EditCaches:
-                layout.operator("leet.cached_bones_load_disk")
-            layout.prop(boneTools, "EditCaches")
+                layout.operator("leet.cached_bones_load_disk", icon="FILE_FOLDER")
+            layout.prop(boneTools, "EditCaches", icon="SETTINGS")
 
         # Load or Delete Cached Selection Selection
         if bones_cached:
             # Button Actions Configuration
             sel_action_edit_row = layout.row()
-            sel_action_edit_row.prop(boneTools, "ReplaceSelected")
-            sel_action_edit_row.prop(boneTools, "FocusOnSelected")
+            sel_action_edit_row.prop(boneTools, "ReplaceSelected", icon="SELECT_SET")
+            sel_action_edit_row.prop(boneTools, "FocusOnSelected", icon="ZOOM_SELECTED")
 
             # List all of the bone groups for this arm with the targeted action
-            for i in boneTools.CachedSelections[currArm]:
+            for i in boneTools.CachesOrder[currArm]:
                 # Naming of group
                 size = len(boneTools.CachedSelections[currArm][i])
                 b = "Bones" if size > 1 else "Bone"
 
-                if boneTools.DeleteCachesMode and boneTools.EditCaches:  # Delete Group
-                    op = layout.operator("leet.delete_cached_bones_set",
-                                         text="{} ({} {}) Delete Selection Cache".format(i, size, b))
+                if boneTools.EditCaches:  # Delete Group
+                    if boneTools.DeleteCachesMode:
+                        op = layout.operator("leet.delete_cached_bones_set", icon="TRASH",
+                                             text="{} ({} {})".format(i, size, b))
+                        op.sel_group = i
+
+                    else: # Move Caches
+                        moveRow = layout.row()
+                        moveRow.label(text="{} ({})".format(i, size))
+
+                        if caches_count > 1: # Buttons to move up and down
+                            opU = moveRow.operator("leet.cached_bones_move_index", text="", icon="SORT_DESC")
+                            opD = moveRow.operator("leet.cached_bones_move_index", text="", icon="SORT_ASC")
+                            opU.sel_group, opD.sel_group = i, i
+                            opU.move_up, opD.move_up = True, False
 
                 else:  # Select Group
-                    add_mode = "Select" if boneTools.ReplaceSelected else "Add To Selection"
-                    op = layout.operator("leet.cached_bones_sel", text="{} ({} {}) {}".format(i, size, b, add_mode))
+                    ico = "SELECT_SET" if boneTools.ReplaceSelected else "SELECT_EXTEND"
+                    op = layout.operator("leet.cached_bones_sel", text="{} ({} {})".format(i, size, b), icon=ico)
+                    op.sel_group = i
 
-                # Set cache to effect
-                op.sel_group = i
-
-            layout.prop(boneTools, "EditCaches")
+            layout.prop(boneTools, "EditCaches", icon="SETTINGS")
 
         # Save Load Bone Caches
         if boneTools.EditCaches:
             cache_opp_row = layout.row()
-            cache_opp_row.prop(boneTools, "AutoSaveBoneCaches")
-            cache_opp_row.prop(boneTools, "DeleteCachesMode")
+            cache_opp_row.prop(boneTools, "AutoSaveBoneCaches", icon="FILE_REFRESH")
+            cache_opp_row.prop(boneTools, "DeleteCachesMode", icon="TRASH")
             if not boneTools.AutoSaveBoneCaches:
                 save_load_row = layout.row()
                 if bones_cached:
-                    save_load_row.operator("leet.cached_bones_save_disk")
-                save_load_row.operator("leet.cached_bones_load_disk")
+                    save_load_row.operator("leet.cached_bones_save_disk", icon="FILE_BLANK", text="Save Caches")
+                save_load_row.operator("leet.cached_bones_load_disk", icon="FILE_FOLDER", text="Load Caches")
 
         # Save New Cahced Selection
         if boneTools.EditCaches:
@@ -479,7 +543,7 @@ class OBJECT_PT_LeetBonePanel(Panel):
                 if boneTools.NewCacheName == "":
                     layout.label(text="Set a name before caching bones.")
                 else:
-                    layout.operator("leet.sel_bones_cache")
+                    layout.operator("leet.sel_bones_cache", icon="BONE_DATA")
             else:
                 layout.label(text="Select bone(s) to make a new cached selection.")
 
@@ -558,13 +622,13 @@ class VIEW3D_MT_PIE_LeetBonePie(Menu):
 
         # Tool Setting Box
         boneOps = pie.column().box()
-        boneOps.label(text="Tools Settings")
+        boneOps.label(text="Tools Settings", icon="TOOL_SETTINGS")
 
         if bones_cached:
 
             # Show the bone selection tools
-            boneOps.prop(boneTools, "ReplaceSelected")
-            boneOps.prop(boneTools, "FocusOnSelected")
+            boneOps.prop(boneTools, "ReplaceSelected", icon="SELECT_SET")
+            boneOps.prop(boneTools, "FocusOnSelected", icon="ZOOM_SELECTED")
 
             if boneTools.ViewPieTools:
                 cachesStack = pie.column()
@@ -572,26 +636,27 @@ class VIEW3D_MT_PIE_LeetBonePie(Menu):
                 cacheView.label(text="Replace Selection" if boneTools.ReplaceSelected else "Add To Selection")
 
             # List all of the bone groups for this arm with the targeted action
-            for i in boneTools.CachedSelections[currArm]:
+            for i in boneTools.CachesOrder[currArm]:
                 # Naming of group
                 size = len(boneTools.CachedSelections[currArm][i])
                 b = "Bones" if size > 1 else "Bone"
+                ico = "SELECT_SET" if boneTools.ReplaceSelected else "SELECT_EXTEND"
 
                 # Add cache to select
                 if boneTools.ViewPieTools:
-                    op = cacheView.operator("leet.cached_bones_sel", text="{} ({} {})".format(i, size, b))
+                    op = cacheView.operator("leet.cached_bones_sel", text="{} ({} {})".format(i, size, b),
+                                            icon=ico)
+                    op.sel_group = i
 
                 else:
-                    add_mode = "Select" if boneTools.ReplaceSelected else "Add To Selection"
-                    op = pie.operator("leet.cached_bones_sel", text="{} ({} {}) {}".format(i, size, b, add_mode))
-
-                op.sel_group = i
+                    op = pie.operator("leet.cached_bones_sel", text="{} ({} {})".format(i, size, b), icon=ico)
+                    op.sel_group = i
 
         else:
             # Option to load the bones
             load = pie.column().box()
             load.label(text="No selection cached for {}".format(currArm))
-            load.operator("leet.cached_bones_load_disk")
+            load.operator("leet.cached_bones_load_disk", icon="FILE_FOLDER")
 
         # Show Hide Other Bone Tools Setting
         boneOps.prop(boneTools, "ViewPieTools")
@@ -608,9 +673,9 @@ class VIEW3D_MT_PIE_LeetBonePie(Menu):
                 other_menu = other.box().column()
                 other_menu.scale_y = 1.3
                 other_menu.label(text="Affect {} Selected Bones".format(num_bones_selected))
-                other_menu.operator("leet.key_bones")
-                other_menu.operator("leet.clear_key_bones")
-                other_menu.operator("leet.reset_bones")
+                other_menu.operator("leet.key_bones", icon="KEYTYPE_KEYFRAME_VEC")
+                other_menu.operator("leet.clear_key_bones", icon="TRASH")
+                other_menu.operator("leet.reset_bones", icon="FILE_REFRESH")
                 other_menu.menu('VIEW3D_MT_LeetBoneOppsEffectMenu', icon='RIGHTARROW_THIN', text='Opps Effect...')
 
             # ------------------------------------------------------------------------
@@ -636,7 +701,8 @@ classes = (
     Leet_CacheBonesLoadDisk,
     Leet_CacheBonesSaveDisk,
     Leet_CacheSelectedBones,
-    Leet_LoadCachedBones,
+    Leet_CachedBoneMoveIndex,
+    Leet_SelectCachedBonesSet,
     Leet_DeleteCachedBonesSet,
     Leet_ResetBones,
     Leet_KeyBones,
