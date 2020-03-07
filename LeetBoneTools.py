@@ -500,6 +500,7 @@ class OBJECT_PT_LeetBonePanel(Panel):
             sel_action_edit_row = layout.row()
             sel_action_edit_row.prop(boneTools, "ReplaceSelected", icon="SELECT_SET")
             sel_action_edit_row.prop(boneTools, "FocusOnSelected", icon="ZOOM_SELECTED")
+            layout.separator()
 
             # List all of the bone groups for this arm with the targeted action
             for i in boneTools.CachesOrder[currArm]:
@@ -528,6 +529,7 @@ class OBJECT_PT_LeetBonePanel(Panel):
                     op = layout.operator("leet.cached_bones_sel", text="{} ({} {})".format(i, size, b), icon=ico)
                     op.sel_group = i
 
+            layout.separator()
             layout.prop(boneTools, "EditCaches", icon="SETTINGS")
 
         # Save Load Bone Caches
