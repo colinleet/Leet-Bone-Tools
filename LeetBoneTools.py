@@ -483,33 +483,36 @@ class OBJECT_PT_LeetBonePanel(Panel):
 
         # Keying Selected Bones Controls Current Frame Tools
         bo = "Bone" if num_bones_selected == 1 else "Bones"
-        top_row = layout.row()
+        top_box = layout.box()
+        top_row = top_box.row()
         arm_subrow = top_row.row()
         arm_subrow.label(text="{} {} Selected".format(num_bones_selected, bo))
         arm_subrow.label(text="{}".format(currArm))
-        top_row.menu('VIEW3D_MT_LeetMenuShowTools', icon='VIEWZOOM', text='Show...')
 
-        layout.separator()
+        # Load or Delete Cached Selection
+        top_edit_row = top_box.row()
+        top_edit_row.prop(boneTools, "EditCaches", icon="SETTINGS")
+        top_edit_row.menu('VIEW3D_MT_LeetMenuShowTools', icon='VIEWZOOM', text='Show...')
 
+        # Keyframing
         if boneTools.ViewFrameKeying:
+            keying_box = layout.box()
             if bones_selected:
-                effect_keys_row = layout.row()
+                effect_keys_row = keying_box.row()
                 effect_keys_row.prop(boneTools, "EffectLoc")
                 effect_keys_row.prop(boneTools, "EffectRot")
                 effect_keys_row.prop(boneTools, "EffectScale")
 
-                bones_keying_opps_row = layout.row()
+                bones_keying_opps_row = keying_box.box().row()
                 bones_keying_opps_row.operator("leet.key_bones", icon="KEYTYPE_KEYFRAME_VEC")
                 bones_keying_opps_row.operator("leet.clear_key_bones", icon="TRASH")
                 bones_keying_opps_row.operator("leet.reset_bones", icon="FILE_REFRESH")
 
             else:
-                no_bones_selected_row = layout.row()
+                no_bones_selected_row = keying_box.row()
                 no_bones_selected_row.label(text="Select bone(s) to affect keying.")
                 no_bones_selected_row.menu('VIEW3D_MT_LeetBoneOppsEffectMenu', icon='RIGHTARROW_THIN',
                                            text='Opps Effect...')
-
-            layout.separator()
 
         # ------------------------------------------------------------------------
         #    Caching Bone Selections
@@ -517,20 +520,16 @@ class OBJECT_PT_LeetBonePanel(Panel):
 
         # Cached Selection Label
         if not bones_cached:
-            layout.label(text="No selections cached for {}".format(currArm))
-            if not boneTools.EditCaches:
-                layout.operator("leet.cached_bones_load_disk", icon="FILE_FOLDER")
-            layout.prop(boneTools, "EditCaches", icon="SETTINGS")
+            no_caches_box = layout.box()
+            no_caches_box.label(text="No selections cached for {}".format(currArm))
+            no_caches_box.operator("leet.cached_bones_load_disk", icon="FILE_FOLDER")
 
-        # Load or Delete Cached Selection Selection
         if bones_cached:
-            # Button Actions Configuration
-            sel_action_edit_row = layout.row()
-            sel_action_edit_row.prop(boneTools, "ReplaceSelected", icon="SELECT_SET")
-            sel_action_edit_row.prop(boneTools, "FocusOnSelected", icon="ZOOM_SELECTED")
+            bone_sel_box = layout.box()
 
             n = 0
-            br = layout.row()
+            selection_box = bone_sel_box.box()
+            br = selection_box.row()
 
             # List all of the bone groups for this arm with the targeted action
             for i in boneTools.CachesOrder[currArm]:
@@ -538,7 +537,7 @@ class OBJECT_PT_LeetBonePanel(Panel):
                 # Make or continue cache row
                 if n == boneTools.NumCachePerRow:
                     n = 0
-                    br = layout.row()
+                    br = selection_box.row()
                 n += 1
 
                 # Naming of group
@@ -570,31 +569,35 @@ class OBJECT_PT_LeetBonePanel(Panel):
                     op = br.operator("leet.cached_bones_sel", text="{} ({} {})".format(i, size, b), icon=ico)
                     op.sel_group = i
 
-            layout.separator()
-            layout.prop(boneTools, "EditCaches", icon="SETTINGS")
+            # Button Actions Configuration
+            sel_action_edit_row = bone_sel_box.row()
+            sel_action_edit_row.prop(boneTools, "ReplaceSelected", icon="SELECT_SET")
+            sel_action_edit_row.prop(boneTools, "FocusOnSelected", icon="ZOOM_SELECTED")
 
         # Save Load Bone Caches
         if boneTools.EditCaches:
-            cache_opp_row = layout.row()
+            edit_add_box = layout.box()
+
+            cache_opp_row = edit_add_box.row()
             cache_opp_row.prop(boneTools, "AutoSaveBoneCaches", icon="FILE_REFRESH")
             cache_opp_row.prop(boneTools, "DeleteCachesMode", icon="TRASH")
+
             if not boneTools.AutoSaveBoneCaches:
-                save_load_row = layout.row()
+                save_load_row = edit_add_box.box().row()
                 if bones_cached:
                     save_load_row.operator("leet.cached_bones_save_disk", icon="FILE_BLANK", text="Save Caches")
                 save_load_row.operator("leet.cached_bones_load_disk", icon="FILE_FOLDER", text="Load Caches")
 
             # Save New Cached Selection
+            new_cache_box = edit_add_box.box()
             if bones_selected:
-                layout.prop(boneTools, "NewCacheName")
+                new_cache_box.prop(boneTools, "NewCacheName")
                 if boneTools.NewCacheName == "":
-                    layout.label(text="Set a name before caching bones.")
+                    new_cache_box.label(text="Set a name before caching bones.")
                 else:
-                    layout.operator("leet.sel_bones_cache", icon="BONE_DATA")
+                    new_cache_box.operator("leet.sel_bones_cache", icon="BONE_DATA")
             else:
-                layout.label(text="Select bone(s) to make a new cached selection.")
-
-
+                new_cache_box.label(text="Select bone(s) to make a new cached selection.")
 
         if boneTools.ViewCursorSnapTools:
             # ------------------------------------------------------------------------
@@ -603,8 +606,7 @@ class OBJECT_PT_LeetBonePanel(Panel):
 
             # When one bone is selected show the snap to cursor/snap bone to cursor tools.
             if num_bones_selected == 1:
-                layout.separator()
-                snap_row = layout.row()
+                snap_row = layout.box().row()
                 snap_row.operator("view3d.snap_cursor_to_selected")
                 snap_row.operator("view3d.snap_selected_to_cursor")
 
@@ -789,6 +791,7 @@ addon_keymaps = []
 
 def register():
     # Register Classes
+    print("--------")
     for cls in classes:
         register_class(cls)
 
