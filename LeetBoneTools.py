@@ -57,6 +57,22 @@ bl_info = {
 # ------------------------------------------------------------------------
 
 class LeetBoneToolsSettings(PropertyGroup):
+    NumCachePerRow: IntProperty(
+        name="Caches Per Row",
+        description="The number of caches to show on a single row",
+        default=1,
+        min=1,
+        max=4
+    )
+
+    NumCachePerRowPie: IntProperty(
+        name="Pie Caches Per Row",
+        description="The number of caches to show on a single row in the pie menu",
+        default=1,
+        min=1,
+        max=3
+    )
+
     EffectLoc: BoolProperty(
         name="Loc",
         description="Makes Leet Bone Tools Effect Location",
@@ -100,18 +116,18 @@ class LeetBoneToolsSettings(PropertyGroup):
     )
 
     ViewPieTools: BoolProperty(
-        name="View Tools",
+        name="View Tools In Pie Menu",
         description="This will show leet bone tools in the pie menu, and make the cache list a list",
         default=True
     )
 
-    ViewPieFrameKeying: BoolProperty(
+    ViewFrameKeying: BoolProperty(
         name="Bone Keying Tools",
         description="This will show the current frame bone keying tools in the pie menu",
         default=True
     )
 
-    ViewPieCursorSnapTools: BoolProperty(
+    ViewCursorSnapTools: BoolProperty(
         name="Snap To Cursor Tools",
         description="This will show or hide the go to cursor tools when one bone is selected",
         default=False
@@ -467,21 +483,33 @@ class OBJECT_PT_LeetBonePanel(Panel):
 
         # Keying Selected Bones Controls Current Frame Tools
         bo = "Bone" if num_bones_selected == 1 else "Bones"
-        layout.label(text="{} {} Selected on {}".format(num_bones_selected, bo, currArm))
-        effect_keys_row = layout.row()
-        effect_keys_row.prop(boneTools, "EffectLoc")
-        effect_keys_row.prop(boneTools, "EffectRot")
-        effect_keys_row.prop(boneTools, "EffectScale")
-        if bones_selected:
-            bones_keying_opps_row = layout.row()
-            bones_keying_opps_row.operator("leet.key_bones", icon="KEYTYPE_KEYFRAME_VEC")
-            bones_keying_opps_row.operator("leet.clear_key_bones", icon="TRASH")
-            bones_keying_opps_row.operator("leet.reset_bones", icon="FILE_REFRESH")
-
-        else:
-            layout.label(text="Select bone(s) to affect keying.")
+        top_row = layout.row()
+        arm_subrow = top_row.row()
+        arm_subrow.label(text="{} {} Selected".format(num_bones_selected, bo))
+        arm_subrow.label(text="{}".format(currArm))
+        top_row.menu('VIEW3D_MT_LeetMenuShowTools', icon='VIEWZOOM', text='Show...')
 
         layout.separator()
+
+        if boneTools.ViewFrameKeying:
+            if bones_selected:
+                effect_keys_row = layout.row()
+                effect_keys_row.prop(boneTools, "EffectLoc")
+                effect_keys_row.prop(boneTools, "EffectRot")
+                effect_keys_row.prop(boneTools, "EffectScale")
+
+                bones_keying_opps_row = layout.row()
+                bones_keying_opps_row.operator("leet.key_bones", icon="KEYTYPE_KEYFRAME_VEC")
+                bones_keying_opps_row.operator("leet.clear_key_bones", icon="TRASH")
+                bones_keying_opps_row.operator("leet.reset_bones", icon="FILE_REFRESH")
+
+            else:
+                no_bones_selected_row = layout.row()
+                no_bones_selected_row.label(text="Select bone(s) to affect keying.")
+                no_bones_selected_row.menu('VIEW3D_MT_LeetBoneOppsEffectMenu', icon='RIGHTARROW_THIN',
+                                           text='Opps Effect...')
+
+            layout.separator()
 
         # ------------------------------------------------------------------------
         #    Caching Bone Selections
@@ -500,33 +528,46 @@ class OBJECT_PT_LeetBonePanel(Panel):
             sel_action_edit_row = layout.row()
             sel_action_edit_row.prop(boneTools, "ReplaceSelected", icon="SELECT_SET")
             sel_action_edit_row.prop(boneTools, "FocusOnSelected", icon="ZOOM_SELECTED")
-            layout.separator()
+
+            n = 0
+            br = layout.row()
 
             # List all of the bone groups for this arm with the targeted action
             for i in boneTools.CachesOrder[currArm]:
+
+                # Make or continue cache row
+                if n == boneTools.NumCachePerRow:
+                    n = 0
+                    br = layout.row()
+                n += 1
+
                 # Naming of group
                 size = len(boneTools.CachedSelections[currArm][i])
                 b = "Bones" if size > 1 else "Bone"
 
                 if boneTools.EditCaches:  # Delete Group
                     if boneTools.DeleteCachesMode:
-                        op = layout.operator("leet.delete_cached_bones_set", icon="TRASH",
+                        op = br.operator("leet.delete_cached_bones_set", icon="TRASH",
                                              text="{} ({} {})".format(i, size, b))
                         op.sel_group = i
 
                     else: # Move Caches
-                        moveRow = layout.row()
+                        moveRow = br.row()
                         moveRow.label(text="{} ({})".format(i, size))
 
                         if caches_count > 1: # Buttons to move up and down
-                            opU = moveRow.operator("leet.cached_bones_move_index", text="", icon="SORT_DESC")
-                            opD = moveRow.operator("leet.cached_bones_move_index", text="", icon="SORT_ASC")
+                            if boneTools.NumCachePerRow == 1:
+                                opU = moveRow.operator("leet.cached_bones_move_index", text="", icon="SORT_DESC")
+                                opD = moveRow.operator("leet.cached_bones_move_index", text="", icon="SORT_ASC")
+                            else:
+                                opU = moveRow.operator("leet.cached_bones_move_index", text="", icon="TRIA_LEFT")
+                                opD = moveRow.operator("leet.cached_bones_move_index", text="", icon="TRIA_RIGHT")
                             opU.sel_group, opD.sel_group = i, i
                             opU.move_up, opD.move_up = True, False
 
                 else:  # Select Group
                     ico = "SELECT_SET" if boneTools.ReplaceSelected else "SELECT_EXTEND"
-                    op = layout.operator("leet.cached_bones_sel", text="{} ({} {})".format(i, size, b), icon=ico)
+                    op = br.operator("leet.cached_bones_sel", text="{} ({} {})".format(i, size, b), icon=ico)
                     op.sel_group = i
 
             layout.separator()
@@ -543,8 +584,7 @@ class OBJECT_PT_LeetBonePanel(Panel):
                     save_load_row.operator("leet.cached_bones_save_disk", icon="FILE_BLANK", text="Save Caches")
                 save_load_row.operator("leet.cached_bones_load_disk", icon="FILE_FOLDER", text="Load Caches")
 
-        # Save New Cahced Selection
-        if boneTools.EditCaches:
+            # Save New Cached Selection
             if bones_selected:
                 layout.prop(boneTools, "NewCacheName")
                 if boneTools.NewCacheName == "":
@@ -554,17 +594,19 @@ class OBJECT_PT_LeetBonePanel(Panel):
             else:
                 layout.label(text="Select bone(s) to make a new cached selection.")
 
-        layout.separator()
 
-        # ------------------------------------------------------------------------
-        #    Cursor To Bone and Back ( One bone only! )
-        # ------------------------------------------------------------------------
 
-        # When one bone is selected show the snap to cursor/snap bone to cursor tools.
-        if num_bones_selected == 1:
-            snap_row = layout.row()
-            snap_row.operator("view3d.snap_cursor_to_selected")
-            snap_row.operator("view3d.snap_selected_to_cursor")
+        if boneTools.ViewCursorSnapTools:
+            # ------------------------------------------------------------------------
+            #    Cursor To Bone and Back ( One bone only! )
+            # ------------------------------------------------------------------------
+
+            # When one bone is selected show the snap to cursor/snap bone to cursor tools.
+            if num_bones_selected == 1:
+                layout.separator()
+                snap_row = layout.row()
+                snap_row.operator("view3d.snap_cursor_to_selected")
+                snap_row.operator("view3d.snap_selected_to_cursor")
 
 
 # ------------------------------------------------------------------------
@@ -587,19 +629,32 @@ class VIEW3D_MT_LeetBoneOppsEffectMenu(Menu):
         layout.label(text="These Bone Keying Tools Effect...")
 
 
-class VIEW3D_MT_LeetPieMenuShowTools(Menu):
-    bl_label = "Leet Pie Menu Show Tools"
-    bl_idname = "VIEW3D_MT_LeetPieMenuShowTools"
+class VIEW3D_MT_LeetMenuShowTools(Menu):
+    bl_label = "Show Bone Tools Menu"
+    bl_idname = "VIEW3D_MT_LeetMenuShowTools"
 
     def draw(self, context):
         layout = self.layout
         scene = context.scene
         boneTools = scene.leetBoneToolsSettings
 
-        layout.prop(boneTools, "ViewPieFrameKeying")
-        layout.prop(boneTools, "ViewPieCursorSnapTools")
-        layout.separator()
-        layout.label(text="Tools to show in this pie menu")
+        layout.prop(boneTools, "NumCachePerRow")
+        layout.prop(boneTools, "ViewFrameKeying")
+        layout.prop(boneTools, "ViewCursorSnapTools")
+
+class VIEW3D_MT_LeetMenuShowToolsPie(Menu):
+    bl_label = "Show Bone Tools Menu"
+    bl_idname = "VIEW3D_MT_LeetMenuShowToolsPie"
+
+    def draw(self, context):
+        layout = self.layout
+        scene = context.scene
+        boneTools = scene.leetBoneToolsSettings
+
+        layout.prop(boneTools, "NumCachePerRowPie")
+        if boneTools.ViewPieTools:
+            layout.prop(boneTools, "ViewFrameKeying")
+            layout.prop(boneTools, "ViewCursorSnapTools")
 
 
 class VIEW3D_MT_PIE_LeetBonePie(Menu):
@@ -628,36 +683,47 @@ class VIEW3D_MT_PIE_LeetBonePie(Menu):
         pie = layout.menu_pie()
 
         # Tool Setting Box
-        boneOps = pie.column().box()
-        boneOps.label(text="Tools Settings", icon="TOOL_SETTINGS")
+        bone_ops_box = pie.column().box()
+        bone_ops_box.label(text="Tools Settings", icon="TOOL_SETTINGS")
 
         if bones_cached:
 
             # Show the bone selection tools
-            boneOps.prop(boneTools, "ReplaceSelected", icon="SELECT_SET")
-            boneOps.prop(boneTools, "FocusOnSelected", icon="ZOOM_SELECTED")
+            sel_op_row = bone_ops_box.row()
+            sel_op_row.prop(boneTools, "ReplaceSelected", icon="SELECT_SET")
+            sel_op_row.prop(boneTools, "FocusOnSelected", icon="ZOOM_SELECTED")
 
             if boneTools.ViewPieTools:
                 cachesStack = pie.column()
                 cacheView = cachesStack.box()
                 cacheView.label(text="Replace Selection" if boneTools.ReplaceSelected else "Add To Selection")
 
+            n = 0
+            if boneTools.ViewPieTools:
+                br = cacheView.row()
+            else:
+                br = pie.column().box()
+
             # List all of the bone groups for this arm with the targeted action
             for i in boneTools.CachesOrder[currArm]:
+                # Make or continue cache row
+                if n == boneTools.NumCachePerRowPie:
+                    n = 0
+                    if boneTools.ViewPieTools:
+                        br = cacheView.row()
+                    else:
+                        br = pie.column().box()
+                n += 1
+
                 # Naming of group
                 size = len(boneTools.CachedSelections[currArm][i])
                 b = "Bones" if size > 1 else "Bone"
                 ico = "SELECT_SET" if boneTools.ReplaceSelected else "SELECT_EXTEND"
 
                 # Add cache to select
-                if boneTools.ViewPieTools:
-                    op = cacheView.operator("leet.cached_bones_sel", text="{} ({} {})".format(i, size, b),
-                                            icon=ico)
-                    op.sel_group = i
-
-                else:
-                    op = pie.operator("leet.cached_bones_sel", text="{} ({} {})".format(i, size, b), icon=ico)
-                    op.sel_group = i
+                op = br.operator("leet.cached_bones_sel", text="{} ({} {})".format(i, size, b),
+                                        icon=ico)
+                op.sel_group = i
 
         else:
             # Option to load the bones
@@ -666,16 +732,17 @@ class VIEW3D_MT_PIE_LeetBonePie(Menu):
             load.operator("leet.cached_bones_load_disk", icon="FILE_FOLDER")
 
         # Show Hide Other Bone Tools Setting
-        boneOps.prop(boneTools, "ViewPieTools")
+        view_row = bone_ops_box.row()
+        view_row.prop(boneTools, "ViewPieTools")
+        view_row.menu('VIEW3D_MT_LeetMenuShowToolsPie', icon='VIEWZOOM', text='Show...')
 
         if boneTools.ViewPieTools:
             # Show which tools can be toggled to show on the pie menu or not.
-            boneOps.menu('VIEW3D_MT_LeetPieMenuShowTools', icon='RIGHTARROW_THIN', text='Show Tools...')
 
             # ------------------------------------------------------------------------
             #    Move bone and Keying Opps
             # ------------------------------------------------------------------------
-            if bones_selected and boneTools.ViewPieFrameKeying:
+            if bones_selected and boneTools.ViewFrameKeying:
                 other = pie.column()
                 other_menu = other.box().column()
                 other_menu.scale_y = 1.3
@@ -688,7 +755,7 @@ class VIEW3D_MT_PIE_LeetBonePie(Menu):
             # ------------------------------------------------------------------------
             #    Cursor To Bone and Back ( One bone only! )
             # ------------------------------------------------------------------------
-            if num_bones_selected == 1 and boneTools.ViewPieCursorSnapTools:
+            if num_bones_selected == 1 and boneTools.ViewCursorSnapTools:
                 # When one bone is selected show the snap to cursor/snap bone to cursor tools.
                 snap_box = pie.box().column()
                 snap_box.operator("view3d.snap_cursor_to_selected")
@@ -704,7 +771,8 @@ classes = (
     OBJECT_PT_LeetBonePanel,
     VIEW3D_MT_LeetBoneOppsEffectMenu,
     VIEW3D_MT_PIE_LeetBonePie,
-    VIEW3D_MT_LeetPieMenuShowTools,
+    VIEW3D_MT_LeetMenuShowToolsPie,
+    VIEW3D_MT_LeetMenuShowTools,
     Leet_CacheBonesLoadDisk,
     Leet_CacheBonesSaveDisk,
     Leet_CacheSelectedBones,
