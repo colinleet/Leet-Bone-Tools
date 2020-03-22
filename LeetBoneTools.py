@@ -196,6 +196,8 @@ def GetCWDAndFileName(share_setting_with_folder: bool = False):
 class Leet_CacheBonesLoadDisk(Operator):
     bl_label = "Load Cached Bones From Disk"
     bl_idname = "leet.cached_bones_load_disk"
+    bl_description = "This will load the cached bone selections in this blend file's save folder.  Options to share " \
+                     "cached selections with all blend files in the save folder are under Show/Settings menu"
 
     def execute(self, context):
         scene = context.scene
@@ -229,6 +231,8 @@ class Leet_CacheBonesLoadDisk(Operator):
 class Leet_CacheBonesSaveDisk(Operator):
     bl_label = "Save Cached Bones To Disk"
     bl_idname = "leet.cached_bones_save_disk"
+    bl_description = "This will save the cached bone selections in this blend file's save folder.  Options to share " \
+                     "cached selections with all blend files in the save folder are under Show/Settings menu"
 
     def execute(self, context):
         scene = context.scene
@@ -250,6 +254,8 @@ class Leet_CacheBonesSaveDisk(Operator):
 class Leet_CacheSelectedBones(Operator):
     bl_label = "Make New Cache Of Selected Bones"
     bl_idname = "leet.sel_bones_cache"
+    bl_description = "This will saved the currently selected bones as a new selection cache.  Options to share " \
+                     "cached selections with all blend files in the save folder are under Show/Settings menu"
 
     def execute(self, context):
         scene = context.scene
@@ -284,6 +290,7 @@ class Leet_CacheSelectedBones(Operator):
 class Leet_SelectCachedBones(Operator):
     bl_label = "Select Cached Bones"
     bl_idname = "leet.cached_bones_sel"
+    bl_description = "This will select this cached selection of pose mode bones"
 
     sel_group: bpy.props.StringProperty()
 
@@ -319,6 +326,7 @@ class Leet_SelectCachedBones(Operator):
 class Leet_CachedBoneMoveIndex(Operator):
     bl_label = "Move Index of Cached Bones"
     bl_idname = "leet.cached_bones_move_index"
+    bl_description = "This will move this bone selection cache up or down in it's display order"
 
     sel_group: bpy.props.StringProperty()
     move_up: bpy.props.BoolProperty()
@@ -363,6 +371,7 @@ class Leet_CachedBoneMoveIndex(Operator):
 class Leet_DeleteCachedBonesSet(Operator):
     bl_label = "Delete Cached Bones"
     bl_idname = "leet.delete_cached_bones_set"
+    bl_description = "This will delete this specific bone selection cache."
 
     sel_group: bpy.props.StringProperty()
 
@@ -397,6 +406,8 @@ class Leet_DeleteCachedBonesSet(Operator):
 class Leet_ResetBones(Operator):
     bl_label = "Reset Bones"
     bl_idname = "leet.reset_bones"
+    bl_description = "This will reset the translation, rotation, and scale of the selected bones in pose mode as set " \
+                     "in the bone keying tools settings"
 
     def execute(self, context):
         scene = context.scene
@@ -419,6 +430,8 @@ class Leet_ResetBones(Operator):
 class Leet_KeyBones(Operator):
     bl_label = "Key Bone"
     bl_idname = "leet.key_bones"
+    bl_description = "This will add translation, rotation, and scale keyframes on the selected bones in pose mode as " \
+                     "set in the bone keying tools settings"
 
     def execute(self, context):
         scene = context.scene
@@ -441,6 +454,8 @@ class Leet_KeyBones(Operator):
 class Leet_ClearKeyBones(Operator):
     bl_label = "Clear Keys"
     bl_idname = "leet.clear_key_bones"
+    bl_description = "This will delete the translation, rotation, and scale keyframes just for this frame on the " \
+                     "selected bones in pose mode as set in the bone keying tools settings"
 
     def execute(self, context):
         scene = context.scene
@@ -602,7 +617,7 @@ class OBJECT_PT_LeetBonePanel(Panel):
         # Load or Delete Cached Selection
         top_edit_row = top_box.row()
         top_edit_row.prop(bone_tools, "EditCaches", icon="SETTINGS")
-        top_edit_row.menu('VIEW3D_MT_LeetMenuShowTools', icon='VIEWZOOM', text='Show...')
+        top_edit_row.menu('VIEW3D_MT_LeetMenuShowTools', icon='VIEWZOOM', text='Show/Settings')
 
         # Save Load Bone Caches
         if bone_tools.EditCaches:
@@ -682,7 +697,7 @@ class VIEW3D_MT_LeetMenuShowTools(Menu):
         layout.prop(bone_tools, "ViewCursorSnapTools")
 
         # Save Options
-        layout.label(text="Saving Options")
+        layout.label(text="Save/Load Selection Options")
         layout.prop(bone_tools, "UseDirectorySaves")
         layout.prop(bone_tools, "AutoSaveBoneCaches")
 
@@ -707,7 +722,7 @@ class VIEW3D_MT_LeetMenuShowToolsPie(Menu):
             layout.prop(bone_tools, "ViewCursorSnapTools")
 
         # Save Options
-        layout.label(text="Saving Options")
+        layout.label(text="Save/Load Selection Options")
         layout.prop(bone_tools, "UseDirectorySaves")
 
 
@@ -741,7 +756,6 @@ class VIEW3D_MT_PIE_LeetBonePie(Menu):
         bone_ops_box.label(text="Plugin Settings", icon="TOOL_SETTINGS")
 
         if bones_cached:
-
             # Show the bone selection tools
             sel_op_row = bone_ops_box.row()
             sel_op_row.prop(bone_tools, "ReplaceSelected", icon="SELECT_SET")
