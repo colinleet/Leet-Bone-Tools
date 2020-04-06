@@ -207,6 +207,7 @@ class Leet_CacheBonesLoadDisk(Operator):
         # bone_tools.AttemptedLoadBoneCache = True
         cwd, fileName = GetCWDAndFileName(bone_tools.UseDirectorySaves)
         filePath = os.path.join(cwd, fileName)
+        print(filePath)
 
         if os.path.exists(filePath):
             # Create the file
@@ -216,14 +217,15 @@ class Leet_CacheBonesLoadDisk(Operator):
 
             # Load the cache data
             for i in d[0].keys():
-                scene.leetBoneToolsSettings.CachedSelections[i] = d[0][i]
+                bone_tools.CachedSelections[i] = d[0][i]
 
             # Load the list order data
             for j in d[1].keys():
-                scene.leetBoneToolsSettings.CachesOrder[j] = d[1][j]
+                bone_tools.CachesOrder[j] = d[1][j]
 
         else:
-            print("Could not find file to load... " + filePath)
+            print("Could not find file to load:")
+            print(filePath)
 
         return {'FINISHED'}
 
@@ -359,7 +361,7 @@ class Leet_CachedBoneMoveIndex(Operator):
         new_index = new_index % modVal
         bone_tools.CachesOrder[bone_tools.CurrArm][sel_index], \
         bone_tools.CachesOrder[bone_tools.CurrArm][new_index] = bone_tools.CachesOrder[bone_tools.CurrArm][new_index], \
-                                                              bone_tools.CachesOrder[bone_tools.CurrArm][sel_index]
+                                                                bone_tools.CachesOrder[bone_tools.CurrArm][sel_index]
 
         # Save changes
         if bone_tools.AutoSaveBoneCaches:
